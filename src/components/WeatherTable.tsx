@@ -1,30 +1,80 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import Cookies from 'js-cookie'; 
 import "flexmonster/flexmonster.css";
 
 export default function WeatherTable() {
-  const [weatherData, setWeatherData] = useState(null);
+  interface WeatherData {
+    forecast: {
+      forecastday: Array<{
+        date: string;
+        day: {
+          condition: {
+            text: string;
+          };
+          maxtemp_c: number;
+          mintemp_c: number;
+          maxwind_kph: number;
+          avghumidity: number;
+          uv: number;
+        };
+      }>;
+    };
+  }
+
+  const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
   const [showMore, setShowMore] = useState(false);
-  const [daysCount, setDaysCount] = useState(5); 
+  const [daysCount, setDaysCount] = useState(5);
+  const [location, setLocation] = useState('Kyiv'); 
+  const [loading, setLoading] = useState(true);
+  const authToken = Cookies.get('authToken'); 
+  function getPosition() {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const lat = position.coords.latitude;
+          const lon = position.coords.longitude;
+          setLocation(`${lat},${lon}`); 
+        },
+        (error) => {
+          console.error('Error getting location, defaulting to Kyiv:', error);
+          setLoading(false); 
+        }
+      );
+    } else {
+      console.error('Geolocation is not supported by this browser, defaulting to Kyiv.');
+      setLoading(false); 
+    }
+  }
 
   useEffect(() => {
+ 
+    if (authToken) {
+        getPosition();
+    }
+  }, []);
+
+  useEffect(() => {
+    
     getWeatherInfo();
-  }, [daysCount]); 
+  }, [location, daysCount]);
+
 
   function getWeatherInfo() {
-    const url =
-      `http://api.weatherapi.com/v1/forecast.json?key=c680e7b486db4415a85165138241210&q=Kyiv&days=${daysCount}&aqi=no&alerts=no`;
+    const url = `https://api.weatherapi.com/v1/forecast.json?key=c680e7b486db4415a85165138241210&q=${location}&days=${daysCount}&aqi=no&alerts=no`;
 
     fetch(url)
       .then((response) => response.json())
       .then((data) => {
         setWeatherData(data);
+        setLoading(false);
       })
       .catch((error) => {
         console.error('Error fetching weather data:', error);
+        setLoading(false);
       });
   }
 
-  function formatDate(dateString) {
+  function formatDate(dateString: string) {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' });
   }
@@ -34,15 +84,17 @@ export default function WeatherTable() {
   };
 
   const handleLoadMoreDays = () => {
-    setDaysCount(daysCount + 3); // Load 3 more days
+    setDaysCount(daysCount + 3);
   };
 
   return (
     <>
       <div className="max-w-full min-h-screen mx-auto p-6 bg-blue-50 shadow-md rounded-lg">
-        <h1 className="text-2xl font-bold text-gray-800 mb-4">7-Day Weather Forecast for Kyiv</h1>
+        <h1 className="text-2xl font-bold text-gray-800 mb-4">Weather Forecast For {location}</h1>
 
-        {weatherData ? (
+        {loading ? (
+          <p className="text-gray-500">Loading weather data...</p>
+        ) : weatherData ? (
           <div className="grid sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {weatherData.forecast.forecastday.map((day, index) => {
               const weatherCondition = day.day.condition.text;
@@ -78,14 +130,14 @@ export default function WeatherTable() {
                       <span className="text-xl">{windEmoji}</span>
                       <span>{windSpeed} km/h</span>
                     </div>
-                    {/* Show more details */}
+            
                     {showMore && (
                       <div className="mt-2 text-sm text-gray-600">
                         <p>Humidity: {day.day.avghumidity}%</p>
                         <p>UV Index: {day.day.uv}</p>
                       </div>
                     )}
-                    {/* Small "See More" button inside the card */}
+                  
                     <button
                       onClick={handleSeeMoreClick}
                       className="mt-2 px-3 py-1 text-xs text-blue-600 hover:text-blue-800 border border-blue-600 hover:border-blue-800 rounded-full transition-all duration-300"
@@ -96,7 +148,6 @@ export default function WeatherTable() {
                 </div>
               );
             })}
-            {/* Button for loading more days */}
             <div className="col-span-full mt-4 text-center">
               <button
                 onClick={handleLoadMoreDays}
@@ -107,7 +158,7 @@ export default function WeatherTable() {
             </div>
           </div>
         ) : (
-          <p className="text-gray-500">Loading weather data...</p>
+          <p className="text-gray-500">Unable to fetch weather data. Please try again.</p>
         )}
       </div>
     </>

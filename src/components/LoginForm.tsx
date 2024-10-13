@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import Input from "./Input";
 import SubmitButton from "./SubmitButton";
+import Cookies from 'js-cookie'; 
 import '../styles/output.css';
 
 export default function LoginForm() {
@@ -45,10 +46,12 @@ export default function LoginForm() {
             hasError = true;
         }
 
-        // Set form validation status
+        
         setFormValid(!hasError);
 
         if (!hasError) {
+        
+            Cookies.set('authToken', 'your_auth_token', { expires: 1 }); 
             console.log('Form submitted successfully!');
         }
     };
@@ -74,7 +77,7 @@ export default function LoginForm() {
                 <SubmitButton
                     onClick={handleSubmit}
                     link="/statistics"
-                    isFormValid={formValid} // Pass form validation status
+                    isFormValid={formValid} 
                 >
                     Submit
                 </SubmitButton>
